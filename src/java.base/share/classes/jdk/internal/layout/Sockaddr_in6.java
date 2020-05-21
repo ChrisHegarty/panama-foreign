@@ -34,7 +34,7 @@ import java.lang.invoke.VarHandle;
 public final class Sockaddr_in6 extends Sockaddr{
 
     private static final Unsafe UNSAFE = Unsafe.getUnsafe();
-    private static final MemoryLayout LAYOUT = SockaddrLayout.sockaddr_in;
+    private static final MemoryLayout LAYOUT = SockaddrLayout.sockaddr_in6;
 
     public static final int SIZE = (int) LAYOUT.byteSize();
 
@@ -43,7 +43,7 @@ public final class Sockaddr_in6 extends Sockaddr{
     }
 
     public static Sockaddr_in6 allocate() {
-        long size = SockaddrLayout.sockaddr_in.byteSize();
+        long size = SockaddrLayout.sockaddr_in6.byteSize();
         long base = UNSAFE.allocateMemory(size);
         var segment = MemorySegment.ofNativeRestricted(MemoryAddress.ofLong(base), size, null, () -> UNSAFE.freeMemory(base), null);
         segment.fill((byte) 0x00);
@@ -58,12 +58,8 @@ public final class Sockaddr_in6 extends Sockaddr{
 
     // -- family
 
-    private static final VarHandle FAMILY = MemoryHandles.asUnsigned(
-            SockaddrLayout.SA_FAMILY_HANDLE,
-            int.class);
-
     public void setFamily() {
-        FAMILY.set(segment.baseAddress(), AF_INET6);
+        SockaddrLayout.SA_FAMILY_HANDLE.set(segment.baseAddress(), AF_INET6);
     }
 
     // -- port
@@ -77,7 +73,7 @@ public final class Sockaddr_in6 extends Sockaddr{
     }
 
     public void setPort(int port) {
-        SIN6_PORT_HANDLE.get(segment.baseAddress(), port);
+        SIN6_PORT_HANDLE.set(segment.baseAddress(), port);
     }
 
     // -- addr
@@ -121,21 +117,4 @@ public final class Sockaddr_in6 extends Sockaddr{
     public void setFlowInfo(int flowInfo) {
         SockaddrLayout.SIN6_FLOWINFO_HANDLE.set(segment.baseAddress(), flowInfo);
     }
-
-    // --
-
-//    private static final byte[] intToByteArray(int value) {
-//        return new byte[] { (byte) (value >>> 24),
-//                (byte) (value >>> 16),
-//                (byte) (value >>> 8),
-//                (byte)  value};
-//    }
-//
-//    private static final byte[] byteArrayToInt(byte[] ba) {
-//        assert ba.length == 4;
-//        return new byte[] { (byte) (value >>> 24),
-//                (byte) (value >>> 16),
-//                (byte) (value >>> 8),
-//                (byte)  value};
-//    }
 }

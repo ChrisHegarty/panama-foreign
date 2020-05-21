@@ -24,6 +24,7 @@
  */
 package jdk.internal.layout;
 
+import jdk.incubator.foreign.MemoryHandles;
 import jdk.incubator.foreign.MemoryLayout;
 import jdk.incubator.foreign.MemoryLayouts;
 import java.lang.invoke.VarHandle;
@@ -38,24 +39,32 @@ public final class SockaddrLayout {
 
     // -- sockaddr
 
-    public static final MemoryLayout sockaddr = MemoryLayout.ofStruct(
-            MemoryLayouts.BITS_16_LE.withName("sa_family"),
-            MemoryLayout.ofSequence(14, MemoryLayouts.BITS_8_LE).withName("sa_zero")
+//    public static final MemoryLayout sockaddr = MemoryLayout.ofStruct(
+//            MemoryLayouts.JAVA_SHORT.withName("sa_family"),
+//            MemoryLayout.ofSequence(14, MemoryLayouts.BITS_8_LE).withName("sa_zero")
+//    ).withName("sockaddr");
+//    public static final VarHandle SA_FAMILY_HANDLE = sockaddr.varHandle(short.class, groupElement("sa_family"));
+
+    public static final MemoryLayout sockaddr =  MemoryLayout.ofStruct(
+            MemoryLayout.ofPaddingBits(8),
+            MemoryLayouts.JAVA_BYTE.withName("sa_family")
     ).withName("sockaddr");
 
-    public static final VarHandle SA_FAMILY_HANDLE = sockaddr.varHandle(short.class, groupElement("sa_family"));
+    public static final VarHandle SA_FAMILY_HANDLE = MemoryHandles.asUnsigned(
+              sockaddr.varHandle(byte.class, groupElement("sa_family")),
+              int.class);
 
     // -- sockaddr_in
 
     public static final MemoryLayout sockaddr_in = MemoryLayout.ofStruct(
             MemoryLayouts.BITS_16_LE.withName("sin_family"),
             MemoryLayout.ofValueBits(16, NETWORK_BYTE_ORDER).withName("sin_port"),
-            MemoryLayout.ofValueBits(16, HOST_BYTE_ORDER).withName("sin_addr"),
+            MemoryLayout.ofValueBits(32, NETWORK_BYTE_ORDER).withName("sin_addr"),
             MemoryLayout.ofSequence(8, MemoryLayouts.BITS_8_LE).withName("sin_zero")
     ).withName("sockaddr_in");
 
     public static final VarHandle SIN_PORT_HANDLE = sockaddr_in.varHandle(short.class, groupElement("sin_port"));
-    public static final VarHandle SIN_ADDR_HANDLE = sockaddr_in.varHandle(short.class, groupElement("sin_addr"));
+    public static final VarHandle SIN_ADDR_HANDLE = sockaddr_in.varHandle(int.class, groupElement("sin_addr"));
 
     // -- sockaddr_in6
 

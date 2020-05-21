@@ -109,6 +109,8 @@ public final class NativeSocketAddress {
             sockaddr_in.setFamily();
             sockaddr_in.setPort(isa.getPort());
             sockaddr_in.setAddr(JNINA.addressValue((Inet4Address) ia));
+            System.out.println("HEGO: toString: " + toString());
+
             return Sockaddr_in.SIZE;
         } else {
             Sockaddr_in6 sockaddr_in6 = Sockaddr_in6.from(sockaddr);
@@ -137,7 +139,11 @@ public final class NativeSocketAddress {
             } else {
                 Sockaddr_in6 sockaddr_in6 = Sockaddr_in6.from(sockaddr);
                 port = sockaddr_in6.port();
-                addr = Inet6Address.getByAddress(null, sockaddr_in6.addr(), sockaddr_in6.getScopeId());
+                int scope = sockaddr_in6.getScopeId();
+                if (scope ==0 )
+                    addr = InetAddress.getByAddress(sockaddr_in6.addr());
+                else
+                    addr = Inet6Address.getByAddress(null, sockaddr_in6.addr(), scope);
             }
             return new InetSocketAddress(addr, port);
         } catch (UnknownHostException e) {
@@ -161,9 +167,10 @@ public final class NativeSocketAddress {
     @Override
     public String toString() {
         int family = sockaddr.family();
+
         if (family == AF_INET || family == AF_INET6) {
             return ((family == AF_INET) ? "AF_INET" : "AF_INET6")
-                    + ", address="; // + address(family) + ", port=" + port(family);
+                    + ", address=" + decode();
         } else {
             return "<unknown>";
         }
@@ -196,6 +203,8 @@ public final class NativeSocketAddress {
     // TODO:: move these native methods.
     public static native int AFINET();
     public static native int AFINET6();
+    private static native int sizeofFamily();
+    private static native int offsetFamily();
     static {
         IOUtil.load();
     }

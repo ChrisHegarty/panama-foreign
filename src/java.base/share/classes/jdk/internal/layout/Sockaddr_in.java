@@ -48,7 +48,7 @@ public final class Sockaddr_in extends Sockaddr{
     // -- family
 
     public void setFamily() {
-        FAMILY.set(segment.baseAddress(), AF_INET);
+        SockaddrLayout.SA_FAMILY_HANDLE.set(segment.baseAddress(), AF_INET);
     }
 
     // -- port

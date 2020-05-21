@@ -51,12 +51,12 @@ public abstract class Sockaddr {
         segment.close();
     }
 
-    protected static final VarHandle FAMILY = MemoryHandles.asUnsigned(
-            SockaddrLayout.SA_FAMILY_HANDLE,
-            int.class);
+//    protected static final VarHandle FAMILY = MemoryHandles.asUnsigned(
+//            SockaddrLayout.SA_FAMILY_HANDLE,
+//            int.class);
 
     public final int family() {
-        int family = (int) FAMILY.get(segment.baseAddress());
+        int family = (int) SockaddrLayout.SA_FAMILY_HANDLE.get(segment.baseAddress());
         assert family == AF_INET || family == AF_INET6;
         return family;
     }
@@ -79,9 +79,6 @@ public abstract class Sockaddr {
     }
 
     // --
-
-    private static native int AFINET();
-    private static native int AFINET6();
 
     // TODO:: move these native methods.
     public static final int AF_INET = NativeSocketAddress.AFINET();
