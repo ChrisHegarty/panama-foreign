@@ -31,7 +31,7 @@ import jdk.incubator.foreign.MemorySegment;
 import jdk.internal.misc.Unsafe;
 import java.lang.invoke.VarHandle;
 
-public final class Sockaddr_in6 extends Sockaddr{
+public final class Sockaddr_in6 extends Sockaddr {
 
     private static final Unsafe UNSAFE = Unsafe.getUnsafe();
     private static final MemoryLayout LAYOUT = SockaddrLayout.sockaddr_in6;

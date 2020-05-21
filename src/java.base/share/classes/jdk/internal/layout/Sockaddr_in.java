@@ -29,7 +29,7 @@ import jdk.incubator.foreign.MemoryLayout;
 import jdk.incubator.foreign.MemorySegment;
 import java.lang.invoke.VarHandle;
 
-public final class Sockaddr_in extends Sockaddr{
+public final class Sockaddr_in extends Sockaddr {
 
     private static final MemoryLayout LAYOUT = SockaddrLayout.sockaddr_in;
 
@@ -87,12 +87,4 @@ public final class Sockaddr_in extends Sockaddr{
                 (byte) (value >>> 8),
                 (byte)  value};
     }
-//
-//    private static final byte[] byteArrayToInt(byte[] ba) {
-//        assert ba.length == 4;
-//        return new byte[] { (byte) (value >>> 24),
-//                (byte) (value >>> 16),
-//                (byte) (value >>> 8),
-//                (byte)  value};
-//    }
 }
