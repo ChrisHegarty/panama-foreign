@@ -26,14 +26,14 @@ package jdk.internal.layout;
 
 import jdk.incubator.foreign.MemoryHandles;
 import jdk.incubator.foreign.MemoryLayout;
+import jdk.incubator.foreign.MemoryLayouts;
 import jdk.incubator.foreign.MemorySegment;
 import java.lang.invoke.VarHandle;
+import java.nio.ByteOrder;
+
+import static jdk.incubator.foreign.MemoryLayout.PathElement.groupElement;
 
 public final class Sockaddr_in extends Sockaddr {
-
-    private static final MemoryLayout LAYOUT = SockaddrLayout.sockaddr_in;
-
-    public static final int SIZE = (int) LAYOUT.byteSize();
 
     private Sockaddr_in(MemorySegment segment) {
         super(segment, LAYOUT);
@@ -48,14 +48,10 @@ public final class Sockaddr_in extends Sockaddr {
     // -- family
 
     public void setFamily() {
-        SockaddrLayout.SA_FAMILY_HANDLE.set(segment.baseAddress(), AF_INET);
+        Sockaddr.SA_FAMILY_HANDLE.set(segment.baseAddress(), AF_INET);
     }
 
     // -- port
-
-    private static final VarHandle SIN_PORT_HANDLE = MemoryHandles.asUnsigned(
-            SockaddrLayout.SIN_PORT_HANDLE,
-            int.class);
 
     public int port() {
         assert family() == AF_INET;
@@ -71,13 +67,33 @@ public final class Sockaddr_in extends Sockaddr {
 
     public byte[] addr() {
         assert family() == AF_INET;
-        return intToByteArray((int) SockaddrLayout.SIN_ADDR_HANDLE.get(segment.baseAddress()));
+        return intToByteArray((int) SIN_ADDR_HANDLE.get(segment.baseAddress()));
     }
 
     public void setAddr(int addr) {
         assert family() == AF_INET;
-        SockaddrLayout.SIN_ADDR_HANDLE.set(segment.baseAddress(), addr);
+        SIN_ADDR_HANDLE.set(segment.baseAddress(), addr);
     }
+
+    // --
+
+    private static final ByteOrder NETWORK_BYTE_ORDER = ByteOrder.BIG_ENDIAN;
+
+    public static final MemoryLayout sockaddr_in = MemoryLayout.ofStruct(
+            MemoryLayouts.BITS_16_LE.withName("sin_family"),
+            MemoryLayout.ofValueBits(16, NETWORK_BYTE_ORDER).withName("sin_port"),
+            MemoryLayout.ofValueBits(32, NETWORK_BYTE_ORDER).withName("sin_addr"),
+            MemoryLayout.ofSequence(8, MemoryLayouts.BITS_8_LE).withName("sin_zero")
+    ).withName("sockaddr_in");
+
+    private static final VarHandle SIN_PORT_HANDLE = MemoryHandles.asUnsigned(
+            sockaddr_in.varHandle(short.class, groupElement("sin_port")),
+            int.class);
+    private static final VarHandle SIN_ADDR_HANDLE = sockaddr_in.varHandle(int.class, groupElement("sin_addr"));
+
+    private static final MemoryLayout LAYOUT = sockaddr_in;
+
+    public static final int SIZE = (int) LAYOUT.byteSize();
 
     // --
 
