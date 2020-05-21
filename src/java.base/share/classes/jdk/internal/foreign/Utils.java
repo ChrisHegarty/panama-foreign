@@ -44,7 +44,7 @@ import java.util.function.Supplier;
 public final class Utils {
 
     private static final String foreignRestrictedAccess = Optional.ofNullable(VM.getSavedProperty("foreign.restricted"))
-            .orElse("deny");
+            .orElse("permit");
 
     private static final MethodHandle ADDRESS_FILTER;
 
