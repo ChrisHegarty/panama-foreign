@@ -109,8 +109,6 @@ public final class NativeSocketAddress {
             sockaddr_in.setFamily();
             sockaddr_in.setPort(isa.getPort());
             sockaddr_in.setAddr(JNINA.addressValue((Inet4Address) ia));
-            System.out.println("HEGO: toString: " + toString());
-
             return Sockaddr_in.SIZE;
         } else {
             Sockaddr_in6 sockaddr_in6 = Sockaddr_in6.from(sockaddr);
