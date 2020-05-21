@@ -31,5 +31,5 @@
  * @moduleGraph
  */
 module jdk.incubator.foreign {
-    exports jdk.incubator.foreign;
+    //exports jdk.incubator.foreign;
 }
