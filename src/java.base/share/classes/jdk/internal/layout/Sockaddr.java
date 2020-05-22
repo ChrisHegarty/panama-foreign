@@ -30,12 +30,37 @@ import jdk.incubator.foreign.MemoryLayout;
 import jdk.incubator.foreign.MemoryLayouts;
 import jdk.incubator.foreign.MemorySegment;
 import sun.nio.ch.NativeSocketAddress;
-
 import java.lang.invoke.VarHandle;
-
 import static jdk.incubator.foreign.MemoryLayout.PathElement.groupElement;
 
 public abstract class Sockaddr {
+
+    // ####: move these
+    public static final int AF_INET = NativeSocketAddress.AFINET();
+    public static final int AF_INET6 = NativeSocketAddress.AFINET6();
+
+    public static final MemoryLayout SOCKADDR_LAYOUT;
+    protected static final VarHandle SA_FAMILY_HANDLE;
+
+    static {
+        // platform specific layout
+        Class<?> carrier;
+        if (NativeSocketAddress.sizeofFamily() == 1) {
+            SOCKADDR_LAYOUT =  MemoryLayout.ofStruct(
+                    MemoryLayout.ofPaddingBits(8),
+                    MemoryLayouts.JAVA_BYTE.withName("sa_family")
+            ).withName("sockaddr");
+            carrier = byte.class;
+        } else {
+            SOCKADDR_LAYOUT =  MemoryLayout.ofStruct(
+                    MemoryLayouts.JAVA_SHORT.withName("sa_family")
+            ).withName("sockaddr");
+            carrier = short.class;
+        }
+        SA_FAMILY_HANDLE = MemoryHandles.asUnsigned(
+                SOCKADDR_LAYOUT.varHandle(carrier, groupElement("sa_family")),
+                int.class);
+    }
 
     protected final MemorySegment segment;
     protected final MemoryLayout layout;
@@ -75,28 +100,4 @@ public abstract class Sockaddr {
         }
         return h;
     }
-
-    // --
-
-//    public static final MemoryLayout sockaddr = MemoryLayout.ofStruct(
-//            MemoryLayouts.JAVA_SHORT.withName("sa_family"),
-//            MemoryLayout.ofSequence(14, MemoryLayouts.BITS_8_LE).withName("sa_zero")
-//    ).withName("sockaddr");
-//    public static final VarHandle SA_FAMILY_HANDLE = sockaddr.varHandle(short.class, groupElement("sa_family"));
-    //    protected static final VarHandle FAMILY = MemoryHandles.asUnsigned(
-//            SockaddrLayout.SA_FAMILY_HANDLE,
-//            int.class);
-
-    public static final MemoryLayout sockaddr =  MemoryLayout.ofStruct(
-            MemoryLayout.ofPaddingBits(8),
-            MemoryLayouts.JAVA_BYTE.withName("sa_family")
-    ).withName("sockaddr");
-
-    public static final VarHandle SA_FAMILY_HANDLE = MemoryHandles.asUnsigned(
-            sockaddr.varHandle(byte.class, groupElement("sa_family")),
-            int.class);
-
-    // TODO:: move these native methods.
-    public static final int AF_INET = NativeSocketAddress.AFINET();
-    public static final int AF_INET6 = NativeSocketAddress.AFINET6();
 }

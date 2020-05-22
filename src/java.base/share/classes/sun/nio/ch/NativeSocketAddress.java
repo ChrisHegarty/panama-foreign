@@ -110,7 +110,7 @@ public final class NativeSocketAddress {
             sockaddr_in.setPort(isa.getPort());
             sockaddr_in.setAddr(JNINA.addressValue((Inet4Address) ia));
             return Sockaddr_in.SIZE;
-        } else {
+        } else if (protocolFamily == StandardProtocolFamily.INET6) {
             Sockaddr_in6 sockaddr_in6 = Sockaddr_in6.from(sockaddr);
             sockaddr_in6.setFamily();
             sockaddr_in6.setPort(isa.getPort());
@@ -118,6 +118,8 @@ public final class NativeSocketAddress {
             sockaddr_in6.setScopeId(scopeidFromAddress(isa.getAddress()));
             sockaddr_in6.setFlowInfo(0);
             return Sockaddr_in6.SIZE;
+        } else {
+            throw new InternalError("unknown family: " + protocolFamily);
         }
     }
 
@@ -125,7 +127,7 @@ public final class NativeSocketAddress {
      * Return an InetSocketAddress to represent the socket address in this buffer.
      * @throws SocketException if the socket address is not AF_INET or AF_INET6
      */
-    InetSocketAddress decode() {
+    InetSocketAddress decode() throws SocketException {
         try {
             int family = sockaddr.family();
             InetAddress addr;
@@ -134,7 +136,7 @@ public final class NativeSocketAddress {
                 Sockaddr_in sockaddr_in = Sockaddr_in.from(sockaddr);
                 port = sockaddr_in.port();
                 addr = InetAddress.getByAddress(sockaddr_in.addr());
-            } else {
+            } else if (family == AF_INET6) {
                 Sockaddr_in6 sockaddr_in6 = Sockaddr_in6.from(sockaddr);
                 port = sockaddr_in6.port();
                 int scope = sockaddr_in6.getScopeId();
@@ -142,6 +144,8 @@ public final class NativeSocketAddress {
                     addr = InetAddress.getByAddress(sockaddr_in6.addr());
                 else
                     addr = Inet6Address.getByAddress(null, sockaddr_in6.addr(), scope);
+            } else {
+                throw new SocketException("unknown family: " + family);
             }
             return new InetSocketAddress(addr, port);
         } catch (UnknownHostException e) {
@@ -165,10 +169,13 @@ public final class NativeSocketAddress {
     @Override
     public String toString() {
         int family = sockaddr.family();
-
         if (family == AF_INET || family == AF_INET6) {
-            return ((family == AF_INET) ? "AF_INET" : "AF_INET6")
-                    + ", address=" + decode();
+            try {
+                return ((family == AF_INET) ? "AF_INET" : "AF_INET6")
+                        + ", address=" + decode();
+            } catch (SocketException e) {
+                throw new InternalError("should not reach here", e);
+            }
         } else {
             return "<unknown>";
         }
@@ -201,8 +208,7 @@ public final class NativeSocketAddress {
     // TODO:: move these native methods.
     public static native int AFINET();
     public static native int AFINET6();
-    private static native int sizeofFamily();
-    private static native int offsetFamily();
+    public static native int sizeofFamily();
     static {
         IOUtil.load();
     }
