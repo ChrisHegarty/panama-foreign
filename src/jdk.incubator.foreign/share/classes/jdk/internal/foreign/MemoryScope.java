@@ -34,6 +34,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.lang.ref.Cleaner;
 import java.lang.ref.Reference;
+import java.lang.ref.SoftReference;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -169,6 +170,11 @@ public abstract class MemoryScope implements ResourceScope, ScopedMemoryAccess.S
      * Should be used with care.
      */
     public abstract void checkValidState();
+
+    @Override
+    public ScopeLock lockScope() {
+        return ScopeLockImpl.of(lock());
+    }
 
     /**
      * Checks that this scope is still alive (see {@link #isAlive()}).
@@ -385,6 +391,23 @@ public abstract class MemoryScope implements ResourceScope, ScopedMemoryAccess.S
         @Override
         public ResourceScope scope() {
             return scope;
+        }
+    }
+
+    /** Wrapper around Lock so that it is accessible from ScopedMemoryAccess. */
+    static class ScopeLockImpl implements ScopedMemoryAccess.Scope.ScopeLock {
+        private final LockImpl lock;
+        private ScopeLockImpl(LockImpl lock) { this.lock = lock; }
+        static ScopeLockImpl of(Lock lock) { return new ScopeLockImpl((LockImpl)lock); }
+
+        @Override
+        public ScopedMemoryAccess.Scope scope() {
+            return lock.scope;
+        }
+
+        @Override
+        public void close() {
+            lock.close();
         }
     }
 

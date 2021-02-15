@@ -28,10 +28,14 @@ package sun.nio.ch;
 import java.nio.channels.*;
 import java.nio.ByteBuffer;
 import java.net.*;
+import java.util.Arrays;
 import java.util.concurrent.*;
 import java.io.IOException;
 import java.io.FileDescriptor;
 
+import jdk.internal.access.JavaNioAccess;
+import jdk.internal.access.SharedSecrets;
+import jdk.internal.misc.ScopedMemoryAccess;
 import sun.net.ConnectionResetException;
 import sun.net.NetHooks;
 import sun.net.util.SocketExceptions;
@@ -44,6 +48,8 @@ import sun.security.action.GetPropertyAction;
 class UnixAsynchronousSocketChannelImpl
     extends AsynchronousSocketChannelImpl implements Port.PollableChannel
 {
+    private static final JavaNioAccess NIO_ACCESS = SharedSecrets.getJavaNioAccess();
+
     private static final NativeDispatcher nd = new SocketDispatcher();
     private static enum OpType { CONNECT, READ, WRITE };
 
@@ -75,7 +81,9 @@ class UnixAsynchronousSocketChannelImpl
     private boolean readPending;
     private boolean isScatteringRead;
     private ByteBuffer readBuffer;
+    private ScopedMemoryAccess.Scope.ScopeLock readBufferLock;
     private ByteBuffer[] readBuffers;
+    private ScopedMemoryAccess.Scope.ScopeLock[] readBuffersLocks;
     private CompletionHandler<Number,Object> readHandler;
     private Object readAttachment;
     private PendingFuture<Number,Object> readFuture;
@@ -85,7 +93,9 @@ class UnixAsynchronousSocketChannelImpl
     private boolean writePending;
     private boolean isGatheringWrite;
     private ByteBuffer writeBuffer;
+    private ScopedMemoryAccess.Scope.ScopeLock writeBufferLock;
     private ByteBuffer[] writeBuffers;
+    private ScopedMemoryAccess.Scope.ScopeLock[] writeBuffersLock;
     private CompletionHandler<Number,Object> writeHandler;
     private Object writeAttachment;
     private PendingFuture<Number,Object> writeFuture;
@@ -375,6 +385,21 @@ class UnixAsynchronousSocketChannelImpl
         }
     }
 
+    /** Locks the buffers scope lock and returns the lock. Otherwise, does
+     * nothing if there is no scope, and null is returned. */
+    private static ScopedMemoryAccess.Scope.ScopeLock lockBuffer(ByteBuffer bb) {
+        var scope = NIO_ACCESS.bufferScope(bb);
+        if (scope != null)
+            return scope.lockScope();
+        return null;
+    }
+
+    /** Unlocks the buffers scope lock, if non-null. */
+    private static void unlockBuffer(ScopedMemoryAccess.Scope.ScopeLock lock) {
+        if (lock != null)
+            lock.close();
+    }
+
     // -- read --
 
     private void finishRead(boolean mayInvokeDirect) {
@@ -403,6 +428,11 @@ class UnixAsynchronousSocketChannelImpl
                 }
                 return;
             }
+
+            // unlock the buffers, if locked
+            unlockBuffer(readBufferLock);
+            if (readBuffersLocks != null)
+                Arrays.stream(readBuffersLocks).forEach(ScopedMemoryAccess.Scope.ScopeLock::close);
 
             // allow objects to be GC'ed.
             this.readBuffer = null;
@@ -496,7 +526,7 @@ class UnixAsynchronousSocketChannelImpl
         Invoker.GroupAndInvokeCount myGroupAndInvokeCount = null;
         boolean invokeDirect = false;
         boolean attemptRead = false;
-        if (!disableSynchronousRead) {
+        if (!disableSynchronousRead) {   // TODO: how to test with this?
             if (handler == null) {
                 attemptRead = true;
             } else {
@@ -526,6 +556,13 @@ class UnixAsynchronousSocketChannelImpl
                 PendingFuture<V,A> result = null;
                 synchronized (updateLock) {
                     this.isScatteringRead = isScatteringRead;
+                    // lock the buffers, if needed
+                    readBufferLock = lockBuffer(dst);
+                    if (dsts != null) {
+                        readBuffersLocks = new ScopedMemoryAccess.Scope.ScopeLock[dsts.length];
+                        for (int i=0; i<dsts.length; i++)
+                            readBuffersLocks[i] = lockBuffer(dsts[i]);
+                    }
                     this.readBuffer = dst;
                     this.readBuffers = dsts;
                     if (handler == null) {

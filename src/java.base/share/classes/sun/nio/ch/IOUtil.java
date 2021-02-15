@@ -28,13 +28,20 @@ package sun.nio.ch;
 import java.io.FileDescriptor;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
+import jdk.internal.access.JavaNioAccess;
+import jdk.internal.access.SharedSecrets;
+import jdk.internal.misc.ScopedMemoryAccess;
 
 /**
  * File-descriptor based I/O utilities that are shared by NIO classes.
  */
 
 public class IOUtil {
+
+    private static final JavaNioAccess NIO_ACCESS = SharedSecrets.getJavaNioAccess();
 
     /**
      * Max number of iovec structures that readv/writev supports
@@ -105,12 +112,22 @@ public class IOUtil {
         int written = 0;
         if (rem == 0)
             return 0;
-        if (position != -1) {
-            written = nd.pwrite(fd,
-                                ((DirectBuffer)bb).address() + pos,
-                                rem, position);
-        } else {
-            written = nd.write(fd, ((DirectBuffer)bb).address() + pos, rem);
+
+        ScopedMemoryAccess.Scope scope = NIO_ACCESS.bufferScope(bb);
+        ScopedMemoryAccess.Scope.ScopeLock lock = null;
+        if (scope != null)
+            lock = scope.lockScope();
+        try {
+            // bypass the address() accessor, since the scope is locked, or there is no scope
+            long address = NIO_ACCESS.getBufferAddress(bb);
+            if (position != -1) {
+                written = nd.pwrite(fd, address + pos, rem, position);
+            } else {
+                written = nd.write(fd, address + pos, rem);
+            }
+        } finally {
+            if (lock != null)
+                lock.close();
         }
         if (written > 0)
             bb.position(pos + written);
@@ -135,6 +152,7 @@ public class IOUtil {
         throws IOException
     {
         IOVecWrapper vec = IOVecWrapper.get(length);
+        List<ScopedMemoryAccess.Scope.ScopeLock> scopes = new ArrayList<>();
 
         boolean completed = false;
         int iov_len = 0;
@@ -170,6 +188,10 @@ public class IOUtil {
                         pos = shadow.position();
                     }
 
+                    ScopedMemoryAccess.Scope scope = NIO_ACCESS.bufferScope(buf);
+                    if (scope != null)
+                        scopes.add(scope.lockScope());
+
                     vec.putBase(iov_len, ((DirectBuffer)buf).address() + pos);
                     vec.putLen(iov_len, rem);
                     iov_len++;
@@ -203,6 +225,7 @@ public class IOUtil {
             return bytesWritten;
 
         } finally {
+            scopes.forEach(ScopedMemoryAccess.Scope.ScopeLock::close);
             // if an error occurred then clear refs to buffers and return any shadow
             // buffers to cache
             if (!completed) {
@@ -270,10 +293,21 @@ public class IOUtil {
         if (rem == 0)
             return 0;
         int n = 0;
-        if (position != -1) {
-            n = nd.pread(fd, ((DirectBuffer)bb).address() + pos, rem, position);
-        } else {
-            n = nd.read(fd, ((DirectBuffer)bb).address() + pos, rem);
+        ScopedMemoryAccess.Scope scope = NIO_ACCESS.bufferScope(bb);
+        ScopedMemoryAccess.Scope.ScopeLock lock = null;
+        if (scope != null)
+            lock = scope.lockScope();
+        try {
+            // bypass the address() accessor, since the scope is locked, or there is no scope
+            long address = NIO_ACCESS.getBufferAddress(bb);
+            if (position != -1) {
+                n = nd.pread(fd, address + pos, rem, position);
+            } else {
+                n = nd.read(fd, address + pos, rem);
+            }
+        } finally {
+            if (lock != null)
+                lock.close();
         }
         if (n > 0)
             bb.position(pos + n);
@@ -298,6 +332,7 @@ public class IOUtil {
         throws IOException
     {
         IOVecWrapper vec = IOVecWrapper.get(length);
+        List<ScopedMemoryAccess.Scope.ScopeLock> scopes = new ArrayList<>();
 
         boolean completed = false;
         int iov_len = 0;
@@ -333,6 +368,10 @@ public class IOUtil {
                         buf = shadow;
                         pos = shadow.position();
                     }
+
+                    ScopedMemoryAccess.Scope scope = NIO_ACCESS.bufferScope(buf);
+                    if (scope != null)
+                        scopes.add(scope.lockScope());
 
                     vec.putBase(iov_len, ((DirectBuffer)buf).address() + pos);
                     vec.putLen(iov_len, rem);
@@ -371,6 +410,7 @@ public class IOUtil {
             return bytesRead;
 
         } finally {
+            scopes.forEach(ScopedMemoryAccess.Scope.ScopeLock::close);
             // if an error occurred then clear refs to buffers and return any shadow
             // buffers to cache
             if (!completed) {

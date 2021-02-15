@@ -27,6 +27,7 @@ package jdk.internal.access;
 
 import jdk.internal.access.foreign.MemorySegmentProxy;
 import jdk.internal.access.foreign.UnmapperProxy;
+import jdk.internal.misc.ScopedMemoryAccess;
 import jdk.internal.misc.VM.BufferPool;
 
 import java.io.FileDescriptor;
@@ -84,6 +85,11 @@ public interface JavaNioAccess {
      * Used by {@code jdk.internal.foreign.AbstractMemorySegmentImpl} and byte buffer var handle views.
      */
     MemorySegmentProxy bufferSegment(Buffer buffer);
+
+    /**
+     * Used by IO operations to retrieve and lock the scope.
+     */
+    ScopedMemoryAccess.Scope bufferScope(Buffer buffer);
 
     /**
      * Used by {@code jdk.internal.foreign.MappedMemorySegmentImpl} and byte buffer var handle views.

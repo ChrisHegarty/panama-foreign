@@ -268,9 +268,9 @@ class Direct$Type$Buffer$RW$$BO$
     public long address() {
         Scope scope = scope();
         if (scope != null) {
-            if (scope.ownerThread() == null) {
-                throw new UnsupportedOperationException("ByteBuffer derived from shared segments not supported");
-            }
+            //if (scope.ownerThread() == null) {
+            //    throw new UnsupportedOperationException("ByteBuffer derived from shared segments not supported");
+            //}
             try {
                 scope.checkValidState();
             } catch (Scope.ScopedAccessError e) {

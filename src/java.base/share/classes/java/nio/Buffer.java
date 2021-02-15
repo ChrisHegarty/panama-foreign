@@ -821,6 +821,11 @@ public abstract class Buffer {
                 }
 
                 @Override
+                public ScopedMemoryAccess.Scope bufferScope(Buffer buffer) {
+                    return buffer.scope();
+                }
+
+                @Override
                 public void force(FileDescriptor fd, long address, boolean isSync, long offset, long size) {
                     MappedMemoryUtils.force(fd, address, isSync, offset, size);
                 }

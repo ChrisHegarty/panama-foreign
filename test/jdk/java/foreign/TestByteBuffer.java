@@ -613,37 +613,40 @@ public class TestByteBuffer {
         MemoryAccess.setInt(s2, 10); // Dead access!
     }
 
-    @Test(expectedExceptions = UnsupportedOperationException.class)
+    @Test
     public void testIOOnSharedSegmentBuffer() throws IOException {
         File tmp = File.createTempFile("tmp", "txt");
         tmp.deleteOnExit();
-        try (FileChannel channel = FileChannel.open(tmp.toPath(), StandardOpenOption.WRITE) ;
+        try (FileChannel channel = FileChannel.open(tmp.toPath(), StandardOpenOption.WRITE, StandardOpenOption.READ) ;
              ResourceScope scope = ResourceScope.ofShared()) {
             MemorySegment segment = MemorySegment.allocateNative(10, 1, scope);
             for (int i = 0; i < 10; i++) {
                 MemoryAccess.setByteAtOffset(segment, i, (byte) i);
             }
             ByteBuffer bb = segment.asByteBuffer();
-            segment.scope().close();
-            channel.write(bb);
+            channel.read(bb);  // TODO:add scatter/gather
+            channel.write(bb.clear());
         }
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    @Test
     public void testIOOnClosedConfinedSegmentBuffer() throws IOException {
         File tmp = File.createTempFile("tmp", "txt");
         tmp.deleteOnExit();
-        try (FileChannel channel = FileChannel.open(tmp.toPath(), StandardOpenOption.WRITE)) {
-            MemorySegment segment = MemorySegment.allocateNative(10);
+        try (FileChannel channel = FileChannel.open(tmp.toPath(), StandardOpenOption.WRITE, StandardOpenOption.READ)) {
+            ResourceScope scope = ResourceScope.ofShared();
+            MemorySegment segment = MemorySegment.allocateNative(10, 1, scope);
             for (int i = 0; i < 10; i++) {
                 MemoryAccess.setByteAtOffset(segment, i, (byte) i);
             }
             ByteBuffer bb = segment.asByteBuffer();
             segment.scope().close();
-            channel.write(bb);
+            assertThrows(IllegalStateException.class, () -> channel.write(bb));
+            assertThrows(IllegalStateException.class, () -> channel.read(bb));
         }
     }
 
+    @Test
     public void testIOOnClosedConfinedSegment() throws IOException {
         File tmp = File.createTempFile("tmp", "txt");
         tmp.deleteOnExit();
