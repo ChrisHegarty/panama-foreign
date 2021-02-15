@@ -116,6 +116,18 @@ public class ScopedMemoryAccess {
 
             public static final ScopedAccessError INSTANCE = new ScopedAccessError();
         }
+
+        // -- tunnel lock from ResourceScope.Lock
+        ScopeLock lockScope();
+
+        interface ScopeLock extends AutoCloseable {
+
+            Scope scope();
+
+            @Override
+            void close();
+        }
+        // --
     }
 
     @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
